@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+
+  db:
+    image: postgres:16
+    container_name: app_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: appdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./asset-entry-BE
+    container_name: app_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:secret@db:5432/appdb
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend_files:/app/files
+
+  frontend:
+    build: ./asset-entry-FE
+    container_name: app_frontend
+    restart: always
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
