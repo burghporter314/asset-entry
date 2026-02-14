@@ -79,7 +79,7 @@ async def create_entry(
     cur.close()
     conn.close()
 
-    return {"id": new_id, "file_saved": bool(file), "file_name": file_name_in_db}
+    return {"id": new_id, "asset": asset, "file_saved": bool(file), "file_name": file_name_in_db}
 
 @app.get("/entries")
 def get_entries():
