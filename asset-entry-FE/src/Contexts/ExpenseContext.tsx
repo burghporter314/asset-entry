@@ -3,17 +3,30 @@ import React, { createContext, useState, useContext } from "react";
 import type { ReactNode } from "react";
 
 export interface Expense {
-  assetId: number;
+  id: number;
+  assetId: string;
   expenseAmount: number;
   expenseType: string;
   date: string;
+  fileName: string | null;
 }
 
 interface ExpensesContextProps {
   data: Expense[];
   setData: (data: Expense[]) => void;
-  search: string;
-  setSearch: (value: string) => void;
+
+  assetSearch: string;
+  setAssetSearch: (value: string) => void;
+
+  expenseSearch: string;
+  setExpenseSearch: (value: string) => void;
+
+  startDate: string;
+  setStartDate: (value: string) => void;
+
+  endDate: string;
+  setEndDate: (value: string) => void;
+
   sortKey: keyof Expense;
   setSortKey: (key: keyof Expense) => void;
   sortAsc: boolean;
@@ -30,13 +43,26 @@ export const useExpensesContext = () => {
 
 export const ExpensesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [data, setData] = useState<Expense[]>([]);
-  const [search, setSearch] = useState("");
+
+  const [assetSearch, setAssetSearch] = useState("");
+  const [expenseSearch, setExpenseSearch] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
   const [sortKey, setSortKey] = useState<keyof Expense>("assetId");
   const [sortAsc, setSortAsc] = useState(true);
 
   return (
     <ExpensesContext.Provider
-      value={{ data, setData, search, setSearch, sortKey, setSortKey, sortAsc, setSortAsc }}
+      value={{
+        data, setData,
+        assetSearch, setAssetSearch,
+        expenseSearch, setExpenseSearch,
+        startDate, setStartDate,
+        endDate, setEndDate,
+        sortKey, setSortKey,
+        sortAsc, setSortAsc
+      }}
     >
       {children}
     </ExpensesContext.Provider>

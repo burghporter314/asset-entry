@@ -6,6 +6,7 @@ import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
 import { useExpensesContext } from "../Contexts/ExpenseContext";
 import { useNavigate } from "react-router-dom";
+import { getFile } from "../services/entry_service";
 
 interface TExpense {
   assetId: number;
@@ -17,7 +18,12 @@ interface TExpense {
 type SortKey = keyof TExpense;
 
 const TableComponent: React.FC = () => {
-    const {data, search, setSearch, sortKey, setSortKey, sortAsc, setSortAsc } = useExpensesContext();
+
+    const {
+        data, assetSearch, expenseSearch, startDate, endDate,
+        sortKey, sortAsc, setSortAsc, setSortKey, setStartDate, setEndDate,
+        setAssetSearch, setExpenseSearch
+    } = useExpensesContext();
 
     const handleSort = (key: SortKey) => {
         if (sortKey === key) {
@@ -28,24 +34,43 @@ const TableComponent: React.FC = () => {
         }
     };
 
+    const handleDownload = async (id: number, fileName: string) => {
+        try {
+            const blob = await getFile(id, fileName);
+
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "attachment";
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error("Download failed:", err);
+        }
+    };
+
     const filteredData = data
-        .filter(
-        (row) =>
-            row.assetId.toString().includes(search.toLowerCase()) ||
-            row.expenseType.toLowerCase().includes(search.toLowerCase()) ||
-            row.date.includes(search) ||
-            row.expenseAmount.toString().includes(search)
-        )
-        .sort((a, b) => {
+    .filter((row) => {
+        const matchesAsset = row.assetId.toLowerCase().includes(assetSearch.toLowerCase());
+        const matchesExpense = row.expenseType.toLowerCase().includes(expenseSearch.toLowerCase());
+        
+        const rowDate = new Date(row.date);
+        const afterStart = startDate ? rowDate >= new Date(startDate) : true;
+        const beforeEnd = endDate ? rowDate <= new Date(endDate) : true;
+
+        return matchesAsset && matchesExpense && afterStart && beforeEnd;
+    })
+    .sort((a, b) => {
         const aVal = a[sortKey];
         const bVal = b[sortKey];
-
         if (typeof aVal === "string" && typeof bVal === "string") {
-            return sortAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        return sortAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
         } else {
-            return sortAsc ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
+        return sortAsc ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
         }
-        });
+    });
 
     const getSortIndicator = (key: SortKey) => (sortKey === key ? (sortAsc ? " ▲" : " ▼") : "");
     const navigate = useNavigate();
@@ -64,14 +89,36 @@ const TableComponent: React.FC = () => {
             alignItems: "center",
         }}
         >
+        <div className="d-flex gap-2 mb-3">
         <Form.Control
             type="text"
-            placeholder="Search..."
-            className="mb-3"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ maxWidth: "400px" }}
+            placeholder="Search asset..."
+            value={assetSearch}
+            onChange={(e) => setAssetSearch(e.target.value)}
+            style={{ maxWidth: "200px" }}
         />
+        <Form.Control
+            type="text"
+            placeholder="Search expense..."
+            value={expenseSearch}
+            onChange={(e) => setExpenseSearch(e.target.value)}
+            style={{ maxWidth: "200px" }}
+        />
+        <Form.Control
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            style={{ maxWidth: "150px" }}
+        />
+        <Form.Control
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            style={{ maxWidth: "150px" }}
+        />
+        </div>
+
+
 
         <div style={{ width: "60%", overflowX: "auto" }}>
             <Table
@@ -102,32 +149,44 @@ const TableComponent: React.FC = () => {
                 </tr>
             </thead>
             <tbody>
-                {filteredData.length > 0 ? (
+            {filteredData.length > 0 ? (
                 filteredData.map((row) => (
-                    <tr key={row.assetId}>
-                    <td><a href="">{row.assetId}</a></td>
+                <tr key={row.id}>
+                    <td>{row.assetId}</td>
                     <td>${row.expenseAmount.toFixed(2)}</td>
                     <td>{row.expenseType}</td>
                     <td>{row.date}</td>
-                    <td></td>
-                    </tr>
-                ))
-                ) : (
-                <tr>
-                    <td colSpan={4} className="text-center">
-                    No results found
+                    <td>
+                    <a
+                        href="#"
+                        onClick={(e) => {
+                        e.preventDefault();
+                        handleDownload(row.id, row.fileName);
+                        }}
+                    >
+                        Download
+                    </a>
                     </td>
                 </tr>
-                )}
+                ))
+            ) : (
+                <tr>
+                <td colSpan={5} className="text-center">
+                    No results found
+                </td>
+                </tr>
+            )}
             </tbody>
+
             </Table>
         </div>
         <div style={{ position: "fixed", bottom: "10%", right: "8%" }}>
             <Button
-                variant="outline-primary"
-                style={{ marginRight: "10px" }} // space between buttons
+            variant="outline-primary"
+            style={{ marginRight: "10px" }}
+            onClick={() => navigate("/analyze", { state: { filteredData } })}
             >
-                Analysis
+            Analysis
             </Button>
 
             <Button variant="outline-success" onClick={() => navigate("/add-item")}>

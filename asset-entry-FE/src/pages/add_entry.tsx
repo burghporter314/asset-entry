@@ -6,6 +6,7 @@ import AddExpenseTypeModal from "../external/modals/add_expense_type";
 import { useNavigate } from "react-router-dom";
 import { createEntry } from "../services/entry_service";
 import { Alert } from "react-bootstrap";
+import { useExpensesContext } from "../Contexts/ExpenseContext";
 
 const AddEntryComponent: React.FC = () => {
   const [assetSearch, setAssetSearch] = useState("");
@@ -20,6 +21,7 @@ const AddEntryComponent: React.FC = () => {
   const [showSuccess, setShowSuccess] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null); // new ref
+  const { data, setData } = useExpensesContext();
 
   const isFormValid =
   assetSearch &&
@@ -52,6 +54,15 @@ const AddEntryComponent: React.FC = () => {
 
       console.log("Success:", result);
 
+      setData([...data, {
+        id: result.id,
+        assetId: result.asset,
+        expenseType: expenseTypeSearch,
+        expenseAmount: parseFloat(amount),
+        date,
+        fileName: result.file_name,
+      }]);
+
       setAssetSearch("");
       setExpenseTypeSearch("");
       setAmount("");
@@ -71,8 +82,8 @@ const AddEntryComponent: React.FC = () => {
     }
   };
 
-  const assets = ["Laptop", "Monitor", "Printer", "Router"];
-  const expenseTypes = ["Alice", "Bob", "Charlie", "Dylan"];
+  const assets = Array.from(new Set(data.map((entry) => entry.assetId?.toString() || ""))).filter(Boolean);
+  const expenseTypes = Array.from(new Set(data.map((entry) => entry.expenseType))).filter(Boolean);
 
   const filteredAssets = assets.filter(a =>
     a.toLowerCase().includes(assetSearch.toLowerCase())
@@ -115,20 +126,12 @@ const AddEntryComponent: React.FC = () => {
             <InputGroup>
             <Form.Control
             type="search"
-            placeholder="Search asset id..."
+            placeholder="Enter asset id..."
             value={assetSearch}
             onFocus={() => setShowAssetSuggestions(true)}
             onBlur={() => setTimeout(() => setShowAssetSuggestions(false), 150)}
             onChange={(e) => setAssetSearch(e.target.value)}
             />
-                <Button variant="primary" onClick={() => setShowAssetModal(true)}>
-                Add
-                </Button>
-                <AddAssetModal
-                    show={showAssetModal}
-                    onHide={() => setShowAssetModal(false)}
-                    onSubmit={handleAddAsset}
-                />
             </InputGroup>
 
             {/* Autocomplete dropdown */}
@@ -175,19 +178,11 @@ const AddEntryComponent: React.FC = () => {
             <InputGroup>
                 <Form.Control
                 type="search"
-                placeholder="Search expense type..."
+                placeholder="Enter expense type..."
                 value={expenseTypeSearch}
                 onFocus={() => setShowExpenseSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowExpenseSuggestions(false), 150)}
                 onChange={(e) => setExpenseTypeSearch(e.target.value)}
-                />
-                <Button variant="primary" onClick={() => setShowExpenseTypeModal(true)}>
-                Add
-                </Button>
-                <AddExpenseTypeModal
-                    show={showExpenseTypeModal}
-                    onHide={() => setShowExpenseTypeModal(false)}
-                    onSubmit={handleAddExpenseType}
                 />
             </InputGroup>
 

@@ -3,6 +3,8 @@ import uuid
 import psycopg2
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi import HTTPException
 
 app = FastAPI()
 
@@ -12,6 +14,7 @@ app.add_middleware(
     allow_origins=["*"],  # or your frontend URL
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"]
 )
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -97,3 +100,33 @@ def get_entries():
         }
         for r in rows
     ]
+
+@app.get("/entries/{entry_id}/file")
+def get_entry_file(entry_id: int):
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT file_name FROM entries WHERE id = %s;", (entry_id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not row or not row[0]:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        file_name = row[0]
+        file_path = os.path.join("/app/files", file_name)
+
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="File not found on disk")
+
+        # Only pass filename here
+        return FileResponse(
+            path=file_path,
+            media_type="application/octet-stream",
+            filename=file_name
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
