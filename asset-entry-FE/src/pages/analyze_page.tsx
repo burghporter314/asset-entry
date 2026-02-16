@@ -31,11 +31,14 @@ const AnalyzePage: React.FC = () => {
     {}
   );
 
-  const summaryRows = Object.entries(summary).map(([assetId, data]) => ({
-    assetId,
-    totalExpenses: data.count,
-    totalAmount: data.total.toFixed(2),
-  }));
+  const summaryRows = Object.entries(summary)
+    .map(([assetId, data]) => ({
+      assetId,
+      totalExpenses: data.count,
+      totalAmount: parseFloat(data.total.toFixed(2)), // keep as number
+    }))
+    .sort((a, b) => b.totalAmount - a.totalAmount); // descending order
+
 
   return (
     <div
@@ -65,7 +68,7 @@ const AnalyzePage: React.FC = () => {
                 <tr key={row.assetId}>
                   <td>{row.assetId}</td>
                   <td>{row.totalExpenses}</td>
-                  <td>${row.totalAmount}</td>
+                  <td>${row.totalAmount.toFixed(2)}</td>
                 </tr>
               ))
             ) : (

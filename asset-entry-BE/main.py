@@ -130,3 +130,37 @@ def get_entry_file(entry_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.delete("/entries/{entry_id}")
+def delete_entry(entry_id: int):
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        # Get file name first
+        cur.execute("SELECT file_name FROM entries WHERE id = %s;", (entry_id,))
+        row = cur.fetchone()
+
+        if not row:
+            cur.close()
+            conn.close()
+            raise HTTPException(status_code=404, detail="Entry not found")
+
+        file_name = row[0]
+
+        # Delete file from disk if it exists
+        if file_name:
+            file_path = os.path.join("/app/files", file_name)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
+        # Delete DB row
+        cur.execute("DELETE FROM entries WHERE id = %s;", (entry_id,))
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        return {"message": "Entry deleted successfully"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

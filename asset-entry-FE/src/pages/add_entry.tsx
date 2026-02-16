@@ -27,8 +27,7 @@ const AddEntryComponent: React.FC = () => {
   assetSearch &&
   expenseTypeSearch &&
   amount &&
-  date &&
-  file;
+  date;
 
   const navigate = useNavigate();
 

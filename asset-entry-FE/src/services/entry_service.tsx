@@ -74,3 +74,13 @@ export const getFile = async (entryId: number, fileName: string) => {
   link.remove();
   URL.revokeObjectURL(url);
 };
+
+export const deleteEntry = async (entryId: number): Promise<void> => {
+  const response = await fetch(`http://localhost:8000/entries/${entryId}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to delete entry");
+  }
+};

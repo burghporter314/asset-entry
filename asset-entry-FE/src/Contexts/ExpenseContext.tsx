@@ -13,7 +13,8 @@ export interface Expense {
 
 interface ExpensesContextProps {
   data: Expense[];
-  setData: (data: Expense[]) => void;
+  setData: React.Dispatch<React.SetStateAction<Expense[]>>;
+
 
   assetSearch: string;
   setAssetSearch: (value: string) => void;
@@ -49,8 +50,8 @@ export const ExpensesProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  const [sortKey, setSortKey] = useState<keyof Expense>("assetId");
-  const [sortAsc, setSortAsc] = useState(true);
+  const [sortKey, setSortKey] = useState<keyof Expense>("date");
+  const [sortAsc, setSortAsc] = useState(false);
 
   return (
     <ExpensesContext.Provider
