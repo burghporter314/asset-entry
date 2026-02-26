@@ -55,8 +55,8 @@ const AddEntryComponent: React.FC = () => {
 
       setData([...data, {
         id: result.id,
-        assetId: assetSearch,
-        expenseType: expenseTypeSearch,
+        assetId: assetSearch.trim(),
+        expenseType: expenseTypeSearch.trim(),
         expenseAmount: parseFloat(amount),
         date,
         fileName: result.file_name,
