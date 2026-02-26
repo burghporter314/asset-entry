@@ -124,58 +124,60 @@ const TableComponent: React.FC = () => {
 
             <div className="d-flex flex-column gap-2">
                 <div className="d-flex align-items-center">
-                    <Form.Label className="me-2 mb-0" style={{ width: "140px" }}>Asset</Form.Label>
+                <Form.Label style={{ minWidth: "100px", flex: "0 0 auto" }}>Asset</Form.Label>
                     <Form.Control
                         type="text"
                         placeholder="Search asset..."
                         value={assetSearch}
                         onChange={(e) => setAssetSearch(e.target.value)}
-                        style={{ width: "250px" }}
+                        style={{ flex: "1 1 auto", minWidth: "120px" }}
                     />
                 </div>
 
                 <div className="d-flex align-items-center">
-                    <Form.Label className="me-2 mb-0" style={{ width: "140px" }}>Expense</Form.Label>
+                    <Form.Label style={{ minWidth: "100px", flex: "0 0 auto" }}>Expense</Form.Label>
                     <Form.Control
                         type="text"
                         placeholder="Search expense..."
                         value={expenseSearch}
                         onChange={(e) => setExpenseSearch(e.target.value)}
-                        style={{ width: "250px" }}
+                        style={{ flex: "1 1 auto", minWidth: "120px" }}
                     />
                 </div>
 
                 <div className="d-flex align-items-center">
-                    <Form.Label className="me-2 mb-0" style={{ width: "140px" }}>Start Date</Form.Label>
+                    <Form.Label style={{ minWidth: "100px", flex: "0 0 auto" }}>Start Date</Form.Label>
                     <Form.Control
                         type="date"
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
-                        style={{ width: "250px" }}
+                        style={{ flex: "1 1 auto", minWidth: "120px" }}
                     />
                 </div>
 
                 <div className="d-flex align-items-center">
-                    <Form.Label className="me-2 mb-0" style={{ width: "140px" }}>End Date</Form.Label>
+                    <Form.Label style={{ minWidth: "100px", flex: "0 0 auto" }}>End Date</Form.Label>
                     <Form.Control
                         type="date"
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
-                        style={{ width: "250px" }}
+                        style={{ flex: "1 1 auto", minWidth: "120px" }}
                     />
                 </div>
 
                 <br />
-                <Button
-                    variant="outline-primary"
-                    onClick={() => navigate("/analyze", { state: { filteredData } })}
-                >
-                    Analysis
-                </Button>
-
-                <Button variant="outline-success" onClick={() => navigate("/add-item")}>
-                    Add Item
-                </Button>
+                <div className="d-flex gap-2 flex-wrap">
+                    <Button
+                        variant="outline-primary"
+                        onClick={() => navigate("/analyze", { state: { filteredData } })}
+                    >
+                        Analysis
+                    </Button>
+                    <br />
+                    <Button variant="outline-success" onClick={() => navigate("/add-item")}>
+                        Add Item
+                    </Button>
+                </div>
             </div>
 
             <br />

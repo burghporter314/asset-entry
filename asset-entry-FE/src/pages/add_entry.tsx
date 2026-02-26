@@ -106,7 +106,7 @@ const AddEntryComponent: React.FC = () => {
         justifyContent: "center"
       }}
     >
-      <Card className="p-4 shadow" style={{ width: "420px" }}>
+      <Card className="p-4 shadow" style={{ maxWidth: "400px" }}>
         {showSuccess && (
           <Alert
             variant="success"
