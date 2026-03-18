@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useExpensesContext } from "../Contexts/ExpenseContext";
+import { useAuth } from "../Contexts/AuthContext";
 import { getFile, deleteEntry } from "../services/entry_service";
 import type { Expense } from "../Contexts/ExpenseContext";
 
 type SortKey = keyof Expense;
 
 const TableComponent: React.FC = () => {
+  const { user } = useAuth();
+  const canDelete = user?.isAdmin || user?.canDelete;
   const {
     data, setData,
     assetSearch, expenseSearch, startDate, endDate,
@@ -187,16 +190,18 @@ const TableComponent: React.FC = () => {
                     )}
                   </td>
                   <td>
-                    {deleteConfirm === row.id ? (
-                      <div className="delete-confirm">
-                        <span>Delete entry?</span>
-                        <button className="delete-yes" onClick={() => handleDelete(row.id)}>Yes</button>
-                        <button className="delete-no" onClick={() => setDeleteConfirm(null)}>No</button>
-                      </div>
-                    ) : (
-                      <button className="btn-icon btn-icon-delete" title="Delete entry" onClick={() => setDeleteConfirm(row.id)}>
-                        ✕
-                      </button>
+                    {canDelete && (
+                      deleteConfirm === row.id ? (
+                        <div className="delete-confirm">
+                          <span>Delete entry?</span>
+                          <button className="delete-yes" onClick={() => handleDelete(row.id)}>Yes</button>
+                          <button className="delete-no" onClick={() => setDeleteConfirm(null)}>No</button>
+                        </div>
+                      ) : (
+                        <button className="btn-icon btn-icon-delete" title="Delete entry" onClick={() => setDeleteConfirm(row.id)}>
+                          ✕
+                        </button>
+                      )
                     )}
                   </td>
                 </tr>

@@ -3,3 +3,5 @@ uvicorn
 psycopg2-binary
 pydantic
 python-multipart
+bcrypt
+python-jose[cryptography]
