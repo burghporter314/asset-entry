@@ -411,6 +411,62 @@ async def create_entry(
     return {"id": new_id, "asset": asset, "file_saved": bool(file), "file_name": file_name_in_db}
 
 
+@app.put("/entries/{entry_id}")
+async def update_entry(
+    entry_id: int,
+    asset: str = Form(...),
+    expense_type: str = Form(...),
+    amount: float = Form(...),
+    date: str = Form(...),
+    file: UploadFile = File(None),
+    clear_file: str = Form("false"),
+    current_user: dict = Depends(require_create)
+):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("SELECT file_name FROM entries WHERE id = %s;", (entry_id,))
+    row = cur.fetchone()
+    if not row:
+        cur.close()
+        conn.close()
+        raise HTTPException(status_code=404, detail="Entry not found")
+
+    existing_file = row[0]
+    new_file_name = existing_file
+
+    if file and file.filename:
+        if existing_file:
+            old_path = os.path.join("/app/files", existing_file)
+            if os.path.exists(old_path):
+                os.remove(old_path)
+        os.makedirs("/app/files", exist_ok=True)
+        ext = os.path.splitext(file.filename)[1]
+        uuid_name = f"{uuid.uuid4()}{ext}"
+        file_path = os.path.join("/app/files", uuid_name)
+        with open(file_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+        new_file_name = uuid_name
+    elif clear_file.lower() == "true":
+        if existing_file:
+            old_path = os.path.join("/app/files", existing_file)
+            if os.path.exists(old_path):
+                os.remove(old_path)
+        new_file_name = None
+
+    cur.execute(
+        "UPDATE entries SET asset = %s, expense_type = %s, amount = %s, date = %s, file_name = %s WHERE id = %s;",
+        (asset, expense_type, amount, date, new_file_name, entry_id)
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return {"id": entry_id, "asset": asset, "expense_type": expense_type,
+            "amount": amount, "date": date, "file_name": new_file_name}
+
+
 @app.get("/entries")
 def get_entries(current_user: dict = Depends(require_read)):
     conn = get_connection()
@@ -450,6 +506,18 @@ def get_entry_file(entry_id: int, current_user: dict = Depends(require_read)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/entries/strip-dashes")
+def admin_strip_asset_dashes(_: dict = Depends(require_admin)):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE entries SET asset = REPLACE(asset, '-', '') WHERE asset LIKE '%-%';")
+    affected = cur.rowcount
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"message": f"Updated {affected} entries", "count": affected}
 
 
 @app.delete("/entries/{entry_id}")

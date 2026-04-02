@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from "react";
 import {
-  adminGetUsers, adminResetPassword, adminUpdatePermissions, adminDeleteUser,
+  adminGetUsers, adminResetPassword, adminUpdatePermissions, adminDeleteUser, adminStripAssetDashes,
   type AdminUser,
 } from "../services/entry_service";
+import { useExpensesContext } from "../Contexts/ExpenseContext";
 import { useAuth } from "../Contexts/AuthContext";
 
 const AdminPage: React.FC = () => {
   const { user: currentUser } = useAuth();
+  const { setData } = useExpensesContext();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +23,12 @@ const AdminPage: React.FC = () => {
 
   // Delete confirm
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+
+  // Strip dashes
+  const [stripLoading, setStripLoading] = useState(false);
+  const [stripResult, setStripResult] = useState<string | null>(null);
+  const [stripError, setStripError] = useState<string | null>(null);
+  const [stripConfirm, setStripConfirm] = useState(false);
 
   // Per-row perm saving state
   const [permSaving, setPermSaving] = useState<Record<number, boolean>>({});
@@ -54,6 +62,25 @@ const AdminPage: React.FC = () => {
       }));
     } finally {
       setPermSaving(prev => ({ ...prev, [user.id]: false }));
+    }
+  };
+
+  // ── Strip dashes ─────────────────────────────────────
+
+  const handleStripDashes = async () => {
+    setStripLoading(true);
+    setStripResult(null);
+    setStripError(null);
+    setStripConfirm(false);
+    try {
+      const result = await adminStripAssetDashes();
+      setStripResult(result.message);
+      // Patch local context data so the table reflects immediately
+      setData(prev => prev.map(e => ({ ...e, assetId: e.assetId.replace(/-/g, '') })));
+    } catch (err: unknown) {
+      setStripError(err instanceof Error ? err.message : "Failed to strip dashes");
+    } finally {
+      setStripLoading(false);
     }
   };
 
@@ -205,6 +232,47 @@ const AdminPage: React.FC = () => {
             </tbody>
           </table>
         )}
+      </div>
+
+      {/* Data Tools */}
+      <div style={{ marginTop: "2rem" }}>
+        <div style={{ marginBottom: "0.75rem" }}>
+          <h2 className="section-title" style={{ fontSize: "1rem" }}>Data Tools</h2>
+          <p style={{ margin: "0.3rem 0 0", fontSize: "0.875rem", color: "var(--text-muted)" }}>
+            Bulk operations on entry data
+          </p>
+        </div>
+        <div className="card-modern" style={{ padding: "1.25rem" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>Remove dashes from asset IDs</div>
+              <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "0.2rem" }}>
+                Strips all <code>-</code> characters from existing asset ID values (e.g. <code>ABC-123</code> → <code>ABC123</code>).
+              </div>
+              {stripResult && (
+                <div style={{ marginTop: "0.5rem", fontSize: "0.82rem", color: "var(--success)", fontWeight: 500 }}>{stripResult}</div>
+              )}
+              {stripError && (
+                <div style={{ marginTop: "0.5rem", fontSize: "0.82rem", color: "var(--danger)" }}>{stripError}</div>
+              )}
+            </div>
+            <div style={{ flexShrink: 0 }}>
+              {stripConfirm ? (
+                <div className="delete-confirm">
+                  <span>Are you sure?</span>
+                  <button className="delete-yes" onClick={handleStripDashes} disabled={stripLoading}>
+                    {stripLoading ? "Running…" : "Yes"}
+                  </button>
+                  <button className="delete-no" onClick={() => setStripConfirm(false)}>No</button>
+                </div>
+              ) : (
+                <button className="btn-back" style={{ fontSize: "0.82rem", whiteSpace: "nowrap" }} onClick={() => setStripConfirm(true)}>
+                  Strip Dashes
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Reset password modal */}

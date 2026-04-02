@@ -137,13 +137,13 @@ const AddEntryComponent: React.FC = () => {
                 autoComplete="off"
                 onFocus={() => setShowAssetSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowAssetSuggestions(false), 150)}
-                onChange={(e) => setAssetSearch(e.target.value)}
+                onChange={(e) => setAssetSearch(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())}
               />
               {showAssetSuggestions && assetSearch.length > 0 && (
                 <div className="autocomplete-dropdown">
                   {filteredAssets.length > 0
                     ? filteredAssets.map((a, i) => (
-                        <div key={i} className="autocomplete-item" onMouseDown={() => setAssetSearch(a)}>{a}</div>
+                        <div key={i} className="autocomplete-item" onMouseDown={(e) => { e.preventDefault(); setAssetSearch(a); setShowAssetSuggestions(false); }}>{a}</div>
                       ))
                     : <div className="autocomplete-empty">No match — will create new asset</div>
                   }

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useExpensesContext } from "../Contexts/ExpenseContext";
 import { useAuth } from "../Contexts/AuthContext";
-import { getFile, deleteEntry } from "../services/entry_service";
+import { getFile, deleteEntry, updateEntry } from "../services/entry_service";
 import type { Expense } from "../Contexts/ExpenseContext";
 
 type SortKey = keyof Expense;
@@ -22,6 +22,18 @@ const TableComponent: React.FC = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const pageSize = 15;
 
+  // Edit state
+  const [editEntry, setEditEntry] = useState<Expense | null>(null);
+  const [editAsset, setEditAsset] = useState("");
+  const [editExpenseType, setEditExpenseType] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editFile, setEditFile] = useState<File | null>(null);
+  const [editClearFile, setEditClearFile] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const editFileRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => { setCurrentPage(1); }, [assetSearch, expenseSearch, startDate, endDate]);
 
   const handleSort = (key: SortKey) => {
@@ -32,6 +44,42 @@ const TableComponent: React.FC = () => {
   const handleDownload = async (id: number, fileName: string) => {
     try { await getFile(id, fileName); }
     catch (err) { console.error("Download failed:", err); }
+  };
+
+  const openEdit = (row: Expense) => {
+    setEditEntry(row);
+    setEditAsset(row.assetId);
+    setEditExpenseType(row.expenseType);
+    setEditAmount(row.expenseAmount.toFixed(2));
+    setEditDate(row.date);
+    setEditFile(null);
+    setEditClearFile(false);
+    setEditError(null);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editEntry || editSaving) return;
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const result = await updateEntry(
+        editEntry.id, editAsset, editExpenseType, editAmount, editDate, editFile, editClearFile
+      );
+      setData(prev => prev.map(r => r.id === editEntry.id ? {
+        ...r,
+        assetId: result.asset,
+        expenseType: result.expense_type,
+        expenseAmount: parseFloat(result.amount),
+        date: result.date,
+        fileName: result.file_name,
+      } : r));
+      setEditEntry(null);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Failed to save changes");
+    } finally {
+      setEditSaving(false);
+    }
   };
 
   const handleDelete = async (id: number) => {
@@ -80,6 +128,7 @@ const TableComponent: React.FC = () => {
   const fmt = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
+    <>
     <div className="page-container">
 
       {/* Tab bar */}
@@ -190,18 +239,25 @@ const TableComponent: React.FC = () => {
                     )}
                   </td>
                   <td>
-                    {canDelete && (
-                      deleteConfirm === row.id ? (
-                        <div className="delete-confirm">
-                          <span>Delete entry?</span>
-                          <button className="delete-yes" onClick={() => handleDelete(row.id)}>Yes</button>
-                          <button className="delete-no" onClick={() => setDeleteConfirm(null)}>No</button>
-                        </div>
-                      ) : (
-                        <button className="btn-icon btn-icon-delete" title="Delete entry" onClick={() => setDeleteConfirm(row.id)}>
-                          ✕
-                        </button>
-                      )
+                    {deleteConfirm === row.id ? (
+                      <div className="delete-confirm">
+                        <span>Delete entry?</span>
+                        <button className="delete-yes" onClick={() => handleDelete(row.id)}>Yes</button>
+                        <button className="delete-no" onClick={() => setDeleteConfirm(null)}>No</button>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", gap: "0.25rem", justifyContent: "flex-end" }}>
+                        {(user?.isAdmin || user?.canCreate) && (
+                          <button className="btn-icon btn-icon-edit" title="Edit entry" onClick={() => openEdit(row)}>
+                            ✎
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button className="btn-icon btn-icon-delete" title="Delete entry" onClick={() => setDeleteConfirm(row.id)}>
+                            ✕
+                          </button>
+                        )}
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -238,6 +294,123 @@ const TableComponent: React.FC = () => {
         </div>
       )}
     </div>
+
+    {/* Edit modal */}
+    {editEntry && (
+      <div className="modal-overlay" onClick={() => !editSaving && setEditEntry(null)}>
+        <div className="modal-box card-modern" onClick={e => e.stopPropagation()}>
+          <div className="modal-header">
+            <h2 className="section-title">Edit Entry</h2>
+            <button className="btn-icon" onClick={() => !editSaving && setEditEntry(null)}>✕</button>
+          </div>
+          <form onSubmit={handleEditSubmit} className="login-form">
+
+            <div className="login-field">
+              <label className="form-field-label">Asset ID</label>
+              <input
+                className="form-control"
+                type="text"
+                value={editAsset}
+                onChange={e => setEditAsset(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())}
+                required
+              />
+            </div>
+
+            <div className="login-field">
+              <label className="form-field-label">Expense Type</label>
+              <input
+                className="form-control"
+                type="text"
+                value={editExpenseType}
+                onChange={e => setEditExpenseType(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="login-field">
+              <label className="form-field-label">Amount</label>
+              <div className="input-group">
+                <span className="input-group-text">$</span>
+                <input
+                  className="form-control"
+                  type="text"
+                  inputMode="decimal"
+                  value={editAmount}
+                  onChange={e => { if (/^\d*\.?\d{0,2}$/.test(e.target.value)) setEditAmount(e.target.value); }}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="login-field">
+              <label className="form-field-label">Date</label>
+              <input
+                className="form-control"
+                type="date"
+                value={editDate}
+                onChange={e => setEditDate(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="login-field">
+              <label className="form-field-label">Receipt</label>
+              {editFile ? (
+                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.5rem 0.75rem", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "6px", fontSize: "0.875rem" }}>
+                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{editFile.name}</span>
+                  <button type="button" onClick={() => { setEditFile(null); if (editFileRef.current) editFileRef.current.value = ""; }}
+                    style={{ background: "none", border: "none", color: "var(--danger)", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600, padding: "0 0.2rem" }}>
+                    Remove
+                  </button>
+                </div>
+              ) : editClearFile ? (
+                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", fontSize: "0.875rem", color: "var(--text-muted)" }}>
+                  <span>No receipt</span>
+                  <button type="button" onClick={() => setEditClearFile(false)}
+                    style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", fontSize: "0.82rem", fontWeight: 500 }}>
+                    Undo
+                  </button>
+                </div>
+              ) : editEntry.fileName ? (
+                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.5rem 0.75rem", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "6px", fontSize: "0.875rem" }}>
+                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-muted)" }}>
+                    Current receipt attached
+                  </span>
+                  <button type="button" onClick={() => setEditClearFile(true)}
+                    style={{ background: "none", border: "none", color: "var(--danger)", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600, padding: "0 0.2rem", flexShrink: 0 }}>
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <input className="form-control" type="file" ref={editFileRef}
+                  onChange={e => setEditFile(e.target.files?.[0] || null)} />
+              )}
+              {!editFile && !editClearFile && editEntry.fileName && (
+                <div style={{ marginTop: "0.35rem" }}>
+                  <input className="form-control" type="file" ref={editFileRef}
+                    onChange={e => { if (e.target.files?.[0]) setEditFile(e.target.files[0]); }}
+                    style={{ fontSize: "0.82rem" }} />
+                  <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "0.2rem" }}>Upload to replace current receipt</div>
+                </div>
+              )}
+            </div>
+
+            {editError && <div className="login-error">{editError}</div>}
+
+            <div style={{ display: "flex", gap: "0.6rem" }}>
+              <button type="button" className="btn-back" style={{ flex: 1, justifyContent: "center" }}
+                onClick={() => !editSaving && setEditEntry(null)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn-add" style={{ flex: 1, justifyContent: "center" }} disabled={editSaving}>
+                {editSaving ? "Saving…" : "Save Changes"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 

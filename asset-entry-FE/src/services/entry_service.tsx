@@ -27,10 +27,18 @@ function authHeaders(): Record<string, string> {
   } catch { return {}; }
 }
 
+async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
+  const response = await fetch(input, init);
+  if (response.status === 401) {
+    window.dispatchEvent(new CustomEvent('auth:expired'));
+  }
+  return response;
+}
+
 // ── Entries ──────────────────────────────────────────────
 
 export const getEntries = async (): Promise<Entry[]> => {
-  const response = await fetch(`${API}/entries`, { headers: authHeaders() });
+  const response = await apiFetch(`${API}/entries`, { headers: authHeaders() });
   if (!response.ok) throw new Error("Failed to fetch entries");
   return response.json();
 };
@@ -49,7 +57,7 @@ export const createEntry = async (
   formData.append("date", date);
   if (file) formData.append("file", file);
 
-  const response = await fetch(`${API}/entries`, {
+  const response = await apiFetch(`${API}/entries`, {
     method: "POST",
     headers: authHeaders(),
     body: formData,
@@ -59,7 +67,7 @@ export const createEntry = async (
 };
 
 export const getFile = async (entryId: number, fileName: string) => {
-  const response = await fetch(`${API}/entries/${entryId}/file`, { headers: authHeaders() });
+  const response = await apiFetch(`${API}/entries/${entryId}/file`, { headers: authHeaders() });
   if (!response.ok) throw new Error("Download failed");
 
   const contentDisposition = response.headers.get("Content-Disposition");
@@ -79,8 +87,34 @@ export const getFile = async (entryId: number, fileName: string) => {
   URL.revokeObjectURL(url);
 };
 
+export const updateEntry = async (
+  entryId: number,
+  asset: string,
+  expenseType: string,
+  amount: string,
+  date: string,
+  file: File | null,
+  clearFile: boolean
+) => {
+  const formData = new FormData();
+  formData.append("asset", asset);
+  formData.append("expense_type", expenseType);
+  formData.append("amount", amount);
+  formData.append("date", date);
+  formData.append("clear_file", clearFile ? "true" : "false");
+  if (file) formData.append("file", file);
+
+  const response = await apiFetch(`${API}/entries/${entryId}`, {
+    method: "PUT",
+    headers: authHeaders(),
+    body: formData,
+  });
+  if (!response.ok) throw new Error("Failed to update entry");
+  return response.json();
+};
+
 export const deleteEntry = async (entryId: number): Promise<void> => {
-  const response = await fetch(`${API}/entries/${entryId}`, {
+  const response = await apiFetch(`${API}/entries/${entryId}`, {
     method: "DELETE",
     headers: authHeaders(),
   });
@@ -90,7 +124,7 @@ export const deleteEntry = async (entryId: number): Promise<void> => {
 // ── Auth ─────────────────────────────────────────────────
 
 export const changePassword = async (currentPassword: string, newPassword: string): Promise<void> => {
-  const response = await fetch(`${API}/auth/change-password`, {
+  const response = await apiFetch(`${API}/auth/change-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
@@ -104,13 +138,13 @@ export const changePassword = async (currentPassword: string, newPassword: strin
 // ── Admin ────────────────────────────────────────────────
 
 export const adminGetUsers = async (): Promise<AdminUser[]> => {
-  const response = await fetch(`${API}/admin/users`, { headers: authHeaders() });
+  const response = await apiFetch(`${API}/admin/users`, { headers: authHeaders() });
   if (!response.ok) throw new Error("Failed to fetch users");
   return response.json();
 };
 
 export const adminResetPassword = async (userId: number, newPassword: string): Promise<void> => {
-  const response = await fetch(`${API}/admin/users/${userId}/reset-password`, {
+  const response = await apiFetch(`${API}/admin/users/${userId}/reset-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ new_password: newPassword }),
@@ -125,7 +159,7 @@ export const adminUpdatePermissions = async (
   userId: number,
   perms: { can_read: boolean; can_create: boolean; can_delete: boolean }
 ): Promise<void> => {
-  const response = await fetch(`${API}/admin/users/${userId}/permissions`, {
+  const response = await apiFetch(`${API}/admin/users/${userId}/permissions`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(perms),
@@ -137,7 +171,7 @@ export const adminUpdatePermissions = async (
 };
 
 export const adminDeleteUser = async (userId: number): Promise<void> => {
-  const response = await fetch(`${API}/admin/users/${userId}`, {
+  const response = await apiFetch(`${API}/admin/users/${userId}`, {
     method: "DELETE",
     headers: authHeaders(),
   });
@@ -145,4 +179,13 @@ export const adminDeleteUser = async (userId: number): Promise<void> => {
     const data = await response.json();
     throw new Error(data.detail || "Failed to delete user");
   }
+};
+
+export const adminStripAssetDashes = async (): Promise<{ message: string; count: number }> => {
+  const response = await apiFetch(`${API}/admin/entries/strip-dashes`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw new Error("Failed to strip dashes");
+  return response.json();
 };
